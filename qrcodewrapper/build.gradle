@@ -35,4 +35,9 @@ dependencies {
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+
+    implementation "cn.bingoogolapple:bga-qrcode-zxing:${rootProject.ext.bga_qrcode_version}"
+    implementation "cn.bingoogolapple:bga-qrcode-zbar:${rootProject.ext.bga_qrcode_version}"
 }
+
+apply from: "${projectDir}/publish.gradle"
