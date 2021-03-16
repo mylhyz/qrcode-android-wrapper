@@ -1,0 +1,3 @@
+include ':qrcodewrapper'
+include ':app'
+rootProject.name = "qrcode-android-wrapper"
