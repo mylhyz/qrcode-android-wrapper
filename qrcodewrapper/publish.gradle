@@ -1,0 +1,104 @@
+apply plugin: 'maven-publish'
+
+def getReleaseRepositoryUrl() {
+    return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
+            : "https://oss.sonatype.org/content/repositories/releases/"
+}
+
+def getSnapshotRepositoryUrl() {
+    return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
+            : "https://oss.sonatype.org/content/repositories/snapshots/"
+}
+
+def getRepositoryUsername() {
+    return hasProperty('NEXUS_USERNAME') ? NEXUS_USERNAME : "admin"
+}
+
+def getRepositoryPassword() {
+    return hasProperty('NEXUS_PASSWORD') ? NEXUS_PASSWORD : "admin123"
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
+publishing {
+    publications {
+        PublishAndroidAssetLibrary(MavenPublication) {
+            groupId 'com.viper.android.qrcode'
+            artifactId 'qrcode-android-wrapper'
+            version version
+            afterEvaluate {
+                artifact bundleReleaseAar
+            }
+            artifact sourcesJar
+
+            pom.withXml {
+                //在pom.xml添加依赖关系
+                def dependenciesNode = asNode().appendNode('dependencies')
+                //拿到所有编译时的依赖
+                def dependenciesList = []
+                dependenciesList.addAll(configurations.compile.allDependencies)
+                dependenciesList.addAll(configurations.api.allDependencies)
+                dependenciesList.each {
+                    if (null != it.group) {
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group == project.group ? groupId : it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                        dependencyNode.appendNode('scope', 'compile')
+                    }
+                }
+                def providedDepList = []
+                providedDepList.addAll(configurations.provided.allDependencies)
+                providedDepList.addAll(configurations.implementation.allDependencies)
+                providedDepList.each {
+                    if (null != it.group) {
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group == project.group ? groupId : it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                        dependencyNode.appendNode('scope', 'compile')
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+def getRepositoryUrl() {
+    if (version != null && version.toLowerCase().endsWith("snapshot")) {
+        return getSnapshotRepositoryUrl()
+    } else {
+        return getReleaseRepositoryUrl()
+    }
+}
+
+boolean isJenkinsBuild = 0 != (System.getenv("BUILD_NUMBER") as Integer ?: 0)
+String localMavenRepoPath = hasProperty("LOCAL_REPO") ? getProperty("LOCAL_REPO") : "${rootDir}/outputs/android/maven"
+
+println("isJenkinsBuild=$isJenkinsBuild,repo=$localMavenRepoPath")
+
+
+publishing {
+    repositories {
+        if (isJenkinsBuild) {
+            //这个是发布到线上仓库的功能支持
+            maven {
+                url getRepositoryUrl()
+                credentials {
+                    username = getRepositoryUsername()
+                    password = getRepositoryPassword()
+                }
+            }
+        } else {
+            //这个是发布到本地目录功能支持
+            maven {
+                url localMavenRepoPath
+            }
+        }
+    }
+}
+
